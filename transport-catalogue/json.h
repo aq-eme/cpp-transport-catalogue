@@ -15,24 +15,42 @@ namespace json {
     using Dict = std::map<std::string, Node>;
     using Array = std::vector<Node>;
 
-// Эта ошибка должна выбрасываться при ошибках парсинга JSON
+    // Эта ошибка должна выбрасываться при ошибках парсинга JSON
     class ParsingError : public std::runtime_error {
     public:
         using runtime_error::runtime_error;
     };
 
-    class Node {
+    class Value {
     public:
-        using Value = std::variant<std::nullptr_t, std::string, int, double, bool, Array, Dict>;
+        using VariantType = std::variant<std::nullptr_t, std::string, int, double, bool, Array, Dict>;
 
         template<typename ValueType>
-        Node(ValueType value)
+        Value(ValueType value)
                 : value_(value)
         {}
 
-        Node()
+        Value()
                 : value_(nullptr)
         {}
+
+        const VariantType& GetValue() const {
+            return value_;
+        }
+        const VariantType& GetVariantValue() const {
+            return value_;
+        }
+
+    private:
+        VariantType value_;
+    };
+
+    class Node : public Value {
+    public:
+        using Value::Value;
+        using Value::VariantType;
+
+        const VariantType& GetValue() const;
 
         bool IsInt() const;
         bool IsDouble() const;
@@ -50,14 +68,13 @@ namespace json {
         const Array& AsArray() const;
         const Dict& AsMap() const;
 
-        const Value& GetValue() const;
+
 
         bool operator==(const Node& rhs) const;
         bool operator!=(const Node& rhs) const;
 
-    private:
-        Value value_;
     };
+
 
     class Document {
     public:

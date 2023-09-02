@@ -12,7 +12,7 @@ namespace renderer {
         return std::abs(value) < EPSILON;
     }
 
-    std::vector<svg::Polyline> MapRenderer::GetRouteLines(const std::map<std::string_view, const transport::Bus*>& buses, const SphereProjector& sp) const {
+    std::vector<svg::Polyline> MapRenderer::VisualizeGetRouteLines(const std::map<std::string_view, const transport::Bus*>& buses, const SphereProjector& sp) const {
         std::vector<svg::Polyline> result;
         size_t color_num = 0;
         for (const auto& [bus_number, bus] : buses) {
@@ -29,7 +29,9 @@ namespace renderer {
             line.SetStrokeLineCap(svg::StrokeLineCap::ROUND);
             line.SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
 
-            if (color_num < (render_settings_.color_palette.size() - 1)) ++color_num;
+            if (render_settings_.color_palette.size() > 1 && color_num < (render_settings_.color_palette.size() - 1)) {
+                ++color_num;
+            }
             else color_num = 0;
 
             result.push_back(line);
@@ -52,7 +54,9 @@ namespace renderer {
             text.SetFontWeight("bold");
             text.SetData(bus->number);
             text.SetFillColor(render_settings_.color_palette[color_num]);
-            if (color_num < (render_settings_.color_palette.size() - 1)) ++color_num;
+            if (render_settings_.color_palette.size() > 1 && color_num < (render_settings_.color_palette.size() - 1)) {
+                ++color_num;
+            }
             else color_num = 0;
 
             underlayer.SetPosition(sp(bus->stops[0]->coordinates));
@@ -70,7 +74,7 @@ namespace renderer {
             result.push_back(underlayer);
             result.push_back(text);
 
-            if (bus->is_circle == false && bus->stops[0] != bus->stops[bus->stops.size() - 1]) {
+            if (bus->is_circle == false && bus->stops.size() > 1 && bus->stops[0] != bus->stops.back()) {
                 svg::Text text2 {text};
                 svg::Text underlayer2 {underlayer};
                 text2.SetPosition(sp(bus->stops[bus->stops.size() - 1]->coordinates));
@@ -142,7 +146,7 @@ namespace renderer {
         }
         SphereProjector sp(route_stops_coord.begin(), route_stops_coord.end(), render_settings_.width, render_settings_.height, render_settings_.padding);
 
-        for (const auto& line : GetRouteLines(buses, sp)) result.Add(line);
+        for (const auto& line : VisualizeGetRouteLines(buses, sp)) result.Add(line);
         for (const auto& text : GetBusLabel(buses, sp)) result.Add(text);
         for (const auto& circle : GetStopsSymbols(all_stops, sp)) result.Add(circle);
         for (const auto& text : GetStopsLabels(all_stops, sp)) result.Add(text);

@@ -27,10 +27,10 @@ namespace transport {
         };
 
         void AddStop(std::string_view stop_name, const geo::Coordinates coordinates);
-        void AddRoute(std::string_view bus_number, const std::vector<const Stop*> stops, bool is_circle);
+        void AddRoute(std::string_view bus_number, const std::vector<const Stop*>& stops, bool is_circle);
         const Bus* FindRoute(std::string_view bus_number) const;
         const Stop* FindStop(std::string_view stop_name) const;
-        size_t UniqueStopsCount(std::string_view bus_number) const;
+        size_t CalculateUniqueStopsCount(std::string_view bus_number) const;
         void SetDistance(const Stop* from, const Stop* to, const int distance);
         int GetDistance(const Stop* from, const Stop* to) const;
         const std::map<std::string_view, const Bus*> GetSortedAllBuses() const;
