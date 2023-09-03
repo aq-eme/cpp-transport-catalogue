@@ -1,5 +1,5 @@
 #pragma once
-
+#include "svg.h"
 #include "json.h"
 #include "transport_catalogue.h"
 #include "map_renderer.h"

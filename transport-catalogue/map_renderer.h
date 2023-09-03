@@ -106,10 +106,10 @@ namespace renderer {
                 : render_settings_(render_settings)
         {}
 
-        std::vector<svg::Polyline> VisualizeGetRouteLines(const std::map<std::string_view, const transport::Bus*>& buses, const SphereProjector& sp) const;
-        std::vector<svg::Text> GetBusLabel(const std::map<std::string_view, const transport::Bus*>& buses, const SphereProjector& sp) const;
-        std::vector<svg::Circle> GetStopsSymbols(const std::map<std::string_view, const transport::Stop*>& stops, const SphereProjector& sp) const;
-        std::vector<svg::Text> GetStopsLabels(const std::map<std::string_view, const transport::Stop*>& stops, const SphereProjector& sp) const;
+        std::vector<svg::Polyline> RenderGetRouteLines(const std::map<std::string_view, const transport::Bus*>& buses, const SphereProjector& sp) const;
+        std::vector<svg::Text> RenderBusLabel(const std::map<std::string_view, const transport::Bus*>& buses, const SphereProjector& sp) const;
+        std::vector<svg::Circle> RenderStopsSymbols(const std::map<std::string_view, const transport::Stop*>& stops, const SphereProjector& sp) const;
+        std::vector<svg::Text> RenderStopsLabels(const std::map<std::string_view, const transport::Stop*>& stops, const SphereProjector& sp) const;
 
         svg::Document GetSVG(const std::map<std::string_view, const transport::Bus*>& buses) const;
 
