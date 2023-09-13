@@ -6,15 +6,15 @@
 
 namespace json {
 
-    class DictItemContext;
     class DictKeyContext;
+    class DictItemContext;
     class ArrayItemContext;
 
     class Builder {
     public:
         Builder();
         DictKeyContext Key(std::string key);
-        Builder& Value(Node::Value value);
+        Builder& Value(Node value);
         DictItemContext StartDict();
         Builder& EndDict();
         ArrayItemContext StartArray();
@@ -25,41 +25,47 @@ namespace json {
     private:
         Node root_{ nullptr };
         std::vector<Node*> nodes_stack_;
-        std::optional<std::string> key_{ std::nullopt };
+        template <typename Type>
+        void InputResult(Type object) {
+            if (nodes_stack_.back()->IsArray()) {
+                const_cast<Array&>(nodes_stack_.back()->AsArray()).push_back(object);
+                nodes_stack_.emplace_back(&const_cast<Array&>(nodes_stack_.back()->AsArray()).back());
+            }
+            else {
+                *nodes_stack_.back() = object;
+            }
+        }
     };
 
-    class DictItemContext {
+    class DictItemContext : public Builder {
     public:
         DictItemContext(Builder& builder);
 
         DictKeyContext Key(std::string key);
         Builder& EndDict();
-
     private:
         Builder& builder_;
     };
 
-    class ArrayItemContext {
+    class ArrayItemContext : public Builder {
     public:
         ArrayItemContext(Builder& builder);
 
-        ArrayItemContext Value(Node::Value value);
+        ArrayItemContext Value(Node value);
         DictItemContext StartDict();
         Builder& EndArray();
         ArrayItemContext StartArray();
-
     private:
         Builder& builder_;
     };
 
-    class DictKeyContext {
+    class DictKeyContext : public Builder {
     public:
         DictKeyContext(Builder& builder);
 
-        DictItemContext Value(Node::Value value);
+        DictItemContext Value(Node value);
         ArrayItemContext StartArray();
         DictItemContext StartDict();
-
     private:
         Builder& builder_;
     };
