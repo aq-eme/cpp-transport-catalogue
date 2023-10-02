@@ -1,38 +1,18 @@
-#include "json_builder.h"
-#include <iostream>
-
-using namespace std;
+#include "json_reader.h"
+#include "request_handler.h"
 
 int main() {
-    json::Print(
-            json::Document{
-                    json::Builder{}
-                            .StartDict()
-                            .Key("key1"s).Value(123)
-                            .Key("key2"s).Value("value2"s)
-                            .Key("key3"s).StartArray()
-                            .Value(456)
-                            .StartDict().EndDict()
-                            .StartDict()
-                            .Key(""s)
-                            .Value(nullptr)
-                            .EndDict()
-                            .Value(""s)
-                            .EndArray()
-                            .EndDict()
-                            .Build()
-            },
-            cout
-    );
-    cout << endl;
+    transport::Catalogue catalogue;
+    JsonReader json_doc(std::cin);
 
-    json::Print(
-            json::Document{
-                    json::Builder{}
-                            .Value("just a string"s)
-                            .Build()
-            },
-            cout
-    );
-    cout << endl;
+    json_doc.FillCatalogue(catalogue);
+
+    const auto& stat_requests = json_doc.GetStatRequests();
+    const auto& render_settings = json_doc.GetRenderSettings();
+    const auto& renderer = json_doc.FillRenderSettings(render_settings);
+    const auto& routing_settings = json_doc.FillRoutingSettings(json_doc.GetRoutingSettings());
+    const transport::Router router = { routing_settings, catalogue };
+
+    RequestHandler rh(catalogue, renderer, router);
+    json_doc.ProcessRequests(stat_requests, rh);
 }

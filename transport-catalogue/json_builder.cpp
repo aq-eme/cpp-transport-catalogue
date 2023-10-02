@@ -7,7 +7,7 @@ namespace json {
         nodes_stack_.emplace_back(root_ptr);
     }
 
-    DictKeyContext Builder::Key(std::string key) {
+    DictKeyContext Builder::Key(const std::string& key) {
         if (!(!nodes_stack_.empty() && nodes_stack_.back()->IsDict())) {
             throw std::logic_error("Wrong map key: " + key);
     }
@@ -15,7 +15,7 @@ namespace json {
         return *this;
     }
 
-    Builder& Builder::Value(Node value) {
+    Builder& Builder::Value(const Node& value) {
         if (nodes_stack_.empty() || (!nodes_stack_.back()->IsNull() && !nodes_stack_.back()->IsArray())) {
             throw std::logic_error("Value error");
         }
@@ -83,7 +83,7 @@ namespace json {
             : builder_(builder)
     {}
 
-    DictKeyContext DictItemContext::Key(std::string key) {
+    DictKeyContext DictItemContext::Key(const std::string& key) {
         return builder_.Key(key);
     }
 

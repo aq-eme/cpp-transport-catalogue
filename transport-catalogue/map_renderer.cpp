@@ -29,7 +29,7 @@ namespace renderer {
             line.SetStrokeLineCap(svg::StrokeLineCap::ROUND);
             line.SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
 
-            if (render_settings_.color_palette.size() > 1 && color_num < (render_settings_.color_palette.size() - 1)) {
+            if (color_num < (render_settings_.color_palette.size() - 1)) {
                 ++color_num;
             }
             else color_num = 0;
@@ -54,7 +54,7 @@ namespace renderer {
             text.SetFontWeight("bold");
             text.SetData(bus->number);
             text.SetFillColor(render_settings_.color_palette[color_num]);
-            if (render_settings_.color_palette.size() > 1 && color_num < (render_settings_.color_palette.size() - 1)) {
+            if (color_num < (render_settings_.color_palette.size() - 1)) {
                 ++color_num;
             }
             else color_num = 0;
@@ -74,7 +74,7 @@ namespace renderer {
             result.push_back(underlayer);
             result.push_back(text);
 
-            if (bus->is_circle == false && bus->stops.size() > 1 && bus->stops[0] != bus->stops.back()) {
+            if (bus->is_circle == false && bus->stops[0] != bus->stops[bus->stops.size() - 1]) {
                 svg::Text text2 {text};
                 svg::Text underlayer2 {underlayer};
                 text2.SetPosition(sp(bus->stops[bus->stops.size() - 1]->coordinates));
