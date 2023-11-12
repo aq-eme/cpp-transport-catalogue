@@ -7,20 +7,19 @@
 
 namespace transport {
 
+    struct RouterSettings {
+        int bus_wait_time = 0;
+        double bus_velocity = 0.0;
+    };
+
     class Router {
     public:
-        Router() = default;
-
-        Router(const int bus_wait_time, const double bus_velocity)
-                : bus_wait_time_(bus_wait_time),
-                  bus_velocity_(bus_velocity) {}
-
-        Router(const Router& settings, const Catalogue& catalogue)
-                : bus_wait_time_(settings.bus_wait_time_),
-                  bus_velocity_(settings.bus_velocity_) {
+        Router(const RouterSettings& settings, const Catalogue& catalogue)
+                : settings_(settings) {
             BuildGraph(catalogue);
         }
-
+        void BuildGraphWithStops(const std::map<std::string, const Stop>& all_stops);
+        void BuildGraphWithBuses(const std::map<std::string, Bus>& all_buses, const Catalogue& catalogue, double velocity);
         void Initialize(const Catalogue& catalogue) {
             BuildGraph(catalogue);
         }
@@ -29,14 +28,15 @@ namespace transport {
         const graph::DirectedWeightedGraph<double>& GetGraph() const;
 
     private:
-        const graph::DirectedWeightedGraph<double> & BuildGraph(const Catalogue& catalogue);
+        void BuildGraph(const Catalogue& catalogue) const;
 
-        int bus_wait_time_ = 0;
-        double bus_velocity_ = 0.0;
+        RouterSettings settings_;
 
         graph::DirectedWeightedGraph<double> graph_;
         std::map<std::string, graph::VertexId> stop_ids_;
         std::unique_ptr<graph::Router<double>> router_;
+
+
     };
 
 }

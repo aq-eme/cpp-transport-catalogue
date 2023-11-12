@@ -163,9 +163,9 @@ renderer::MapRenderer JsonReader::FillRenderSettings(const json::Node& settings)
     return render_settings;
 }
 
-transport::Router JsonReader::FillRoutingSettings(const json::Node& settings) const {
-    transport::Router routing_settings;
-    return transport::Router{ settings.AsDict().at("bus_wait_time"s).AsInt(), settings.AsDict().at("bus_velocity"s).AsDouble() };
+const transport::RouterSettings JsonReader::FillRoutingSettings(const json::Node& settings) const {
+    transport::RouterSettings settings_;
+    return transport::RouterSettings{ settings.AsDict().at("bus_wait_time"s).AsInt(), settings.AsDict().at("bus_velocity"s).AsDouble() };
 }
 
 const json::Node JsonReader::PrintRoute(const json::Dict& request_map, RequestHandler& rh) const {
