@@ -2,12 +2,12 @@
 
 namespace transport {
 
-    void Router::BuildGraph(const Catalogue& catalogue) const {
-        catalogue.GetSortedAllStops();
-        catalogue.GetSortedAllBuses();
+    void Router::BuildGraph() const {
+        catalogue_.GetSortedAllStops();
+        catalogue_.GetSortedAllBuses();
     }
 
-    void Router::BuildGraphWithStops(const std::map<std::string, const Stop>& all_stops) {
+    void Router::BuildGraphWithStops() {
         graph::DirectedWeightedGraph<double> stops_graph(all_stops.size() * 2);
         std::map<std::string, graph::VertexId> stop_ids;
         graph::VertexId vertex_id = 0;
@@ -28,7 +28,7 @@ namespace transport {
         router_ = std::make_unique<graph::Router<double>>(graph_);
     }
 
-    void Router::BuildGraphWithBuses(const std::map<std::string, Bus>& all_buses, const Catalogue& catalogue, double velocity) {
+    void Router::BuildGraphWithBuses(double velocity) {
         for (const auto& [_, bus_info] : all_buses) {
             const auto& stops = bus_info.stops;
             size_t stops_count = stops.size();
@@ -39,8 +39,8 @@ namespace transport {
                     int dist_sum = 0;
                     int dist_sum_inverse = 0;
                     for (size_t k = i + 1; k <= j; ++k) {
-                        dist_sum += catalogue.GetDistance(stops[k - 1], stops[k]);
-                        dist_sum_inverse += catalogue.GetDistance(stops[k], stops[k - 1]);
+                        dist_sum += catalogue_.GetDistance(stops[k - 1], stops[k]);
+                        dist_sum_inverse += catalogue_.GetDistance(stops[k], stops[k - 1]);
                     }
                     graph_.AddEdge({
                                            bus_info.number,
@@ -71,5 +71,7 @@ namespace transport {
     const graph::DirectedWeightedGraph<double>& Router::GetGraph() const {
         return graph_;
     }
+    /*Данный код возвращает ссылку на объект графа graph_ из класса Router,
+     * чтобы получать доступ к графу извне объекта.*/
 
 }
