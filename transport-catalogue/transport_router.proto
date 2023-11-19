@@ -19,3 +19,5 @@ message Router {
   proto_graph.Graph graph = 2;
   repeated StopId stop_ids = 3;
 }
+
+// очень торопился, учту все замечания и ошибки
