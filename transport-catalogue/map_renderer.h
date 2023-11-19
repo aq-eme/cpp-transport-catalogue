@@ -113,6 +113,8 @@ namespace renderer {
 
         svg::Document GetSVG(const std::map<std::string_view, const transport::Bus*>& buses) const;
 
+        const RenderSettings GetRenderSettings() const;
+
     private:
         const RenderSettings render_settings_;
     };
