@@ -1,77 +1,107 @@
 #include "transport_router.h"
 
-namespace transport {
+namespace transport_catalogue::router {
 
-    void Router::BuildGraph() const {
-        catalogue_.GetSortedAllStops();
-        catalogue_.GetSortedAllBuses();
+    Router::Router(RoutingSettings settings, const TransportCatalogue& db)
+            : settings_(std::move(settings))
+    {
+        const auto& stops = db.GetStops();
+        const size_t vertex_count = stops.size() * 2;
+
+        graph_holder_ = std::make_unique<BusGraph>(vertex_count);
+        vertices_info_.resize(vertex_count);
+
+        FillGraphWithStops(stops);
+        FillGraphWithBuses(db);
+
+        router_holder_ = std::make_unique<InternalRouter>(*graph_holder_);
     }
 
-    void Router::BuildGraphWithStops() {
-        graph::DirectedWeightedGraph<double> stops_graph(all_stops.size() * 2);
-        std::map<std::string, graph::VertexId> stop_ids;
+    std::optional<RouteInfo> Router::FindRoute(StopPtr stop_from, StopPtr stop_to) const {
+        const graph::VertexId vertex_from = stops_vertex_ids_.at(stop_from).out;
+        const graph::VertexId vertex_to = stops_vertex_ids_.at(stop_to).out;
+        const auto route = router_holder_->BuildRoute(vertex_from, vertex_to);
+        if (!route) {
+            return std::nullopt;
+        }
+
+        RouteInfo route_info;
+        route_info.total_time = route->weight;
+        route_info.items.reserve(route->edges.size());
+        for (const graph::EdgeId edge_id : route->edges) {
+            const auto& edge = graph_holder_->GetEdge(edge_id);
+            const auto& edge_info = edges_info_[edge_id];
+            if (std::holds_alternative<BusEdgeInfo>(edge_info)) {
+                const BusEdgeInfo& bus_edge_info = std::get<BusEdgeInfo>(edge_info);
+                route_info.items.push_back(RouteInfo::BusItem{
+                        /* bus_ptr */    bus_edge_info.bus_ptr,
+                        /* time */       edge.weight,
+                        /* span_count */ bus_edge_info.span_count,
+                });
+            } else {
+                const graph::VertexId vertex_id = edge.from;
+                route_info.items.push_back(RouteInfo::WaitItem{
+                        /* stop_ptr */ vertices_info_[vertex_id].stop_ptr,
+                        /* time */     edge.weight,
+                });
+            }
+        }
+
+        return route_info;
+    }
+
+    void Router::FillGraphWithStops(const TransportCatalogue::StopPool& stops) {
         graph::VertexId vertex_id = 0;
 
-        for (const auto& [stop_name, stop_info] : all_stops) {
-            stop_ids[std::string(stop_name)] = vertex_id;
-            stops_graph.AddEdge({
-                                        std::string(stop_name),
-                                        0,
-                                        vertex_id,
-                                        ++vertex_id,
-                                        static_cast<double>(settings_.bus_wait_time)
-                                });
-            ++vertex_id;
+        for (const Stop& stop : stops) {
+            auto& vertex_ids = stops_vertex_ids_[&stop];
+            vertex_ids.in = vertex_id++;
+            vertex_ids.out = vertex_id++;
+            vertices_info_[vertex_ids.in] = {&stop};
+            vertices_info_[vertex_ids.out] = {&stop};
+
+            edges_info_.push_back(WaitEdgeInfo{});
+            const graph::EdgeId edge_id = graph_holder_->AddEdge({
+                                                                         vertex_ids.out,
+                                                                         vertex_ids.in,
+                                                                         Minutes(settings_.bus_wait_time.count())
+                                                                 });
+            assert(edge_id == edges_info_.size() - 1);
         }
-        stop_ids_ = std::move(stop_ids);
-        graph_ = std::move(stops_graph);
-        router_ = std::make_unique<graph::Router<double>>(graph_);
+
+        assert(vertex_id == graph_holder_->GetVertexCount());
     }
 
-    void Router::BuildGraphWithBuses(double velocity) {
-        for (const auto& [_, bus_info] : all_buses) {
-            const auto& stops = bus_info.stops;
-            size_t stops_count = stops.size();
-            for (size_t i = 0; i < stops_count; ++i) {
-                for (size_t j = i + 1; j < stops_count; ++j) {
-                    const Stop* stop_from = stops[i];
-                    const Stop* stop_to = stops[j];
-                    int dist_sum = 0;
-                    int dist_sum_inverse = 0;
-                    for (size_t k = i + 1; k <= j; ++k) {
-                        dist_sum += catalogue_.GetDistance(stops[k - 1], stops[k]);
-                        dist_sum_inverse += catalogue_.GetDistance(stops[k], stops[k - 1]);
-                    }
-                    graph_.AddEdge({
-                                           bus_info.number,
-                                           j - i,
-                                           stop_ids_.at(stop_from->name) + 1,
-                                           stop_ids_.at(stop_to->name),
-                                           static_cast<double>(dist_sum) / velocity
-                                   });
-
-                    if (!bus_info.is_circle) {
-                        graph_.AddEdge({
-                                               bus_info.number,
-                                               j - i,
-                                               stop_ids_.at(stop_to->name) + 1,
-                                               stop_ids_.at(stop_from->name),
-                                               static_cast<double>(dist_sum_inverse) / velocity
-                                       });
-                    }
+    void Router::FillGraphWithBuses(const TransportCatalogue& db) {
+        for (const Bus& bus : db.GetBuses()) {
+            const auto& bus_stops = bus.stops;
+            const size_t stop_count = bus_stops.size();
+            if (stop_count <= 1) {
+                continue;
+            }
+            auto compute_distance_from = [&db, &bus_stops](size_t stop_idx) {
+                return db.GetDistance(bus_stops[stop_idx], bus_stops[stop_idx + 1]);
+            };
+            for (size_t start_stop_idx = 0; start_stop_idx + 1 < stop_count; ++start_stop_idx) {
+                const graph::VertexId start_vertex = stops_vertex_ids_.at(bus_stops[start_stop_idx]).in;
+                int total_distance = 0;
+                for (size_t finish_stop_idx = start_stop_idx + 1; finish_stop_idx < stop_count; ++finish_stop_idx) {
+                    total_distance += compute_distance_from(finish_stop_idx - 1);
+                    edges_info_.push_back(BusEdgeInfo{
+                            &bus,
+                            finish_stop_idx - start_stop_idx,
+                    });
+                    const graph::EdgeId edge_id = graph_holder_->AddEdge({
+                                                                                 start_vertex,
+                                                                                 stops_vertex_ids_.at(bus_stops[finish_stop_idx]).out,
+                                                                                 Minutes(
+                                                                                         total_distance * 1.0 / (settings_.bus_velocity_kmh * 1000.0 / 60)
+                                                                                 )  // m / (km/h * 1000 / 60) = min
+                                                                         });
+                    assert(edge_id == edges_info_.size() - 1);
                 }
             }
         }
     }
 
-    const std::optional<graph::Router<double>::RouteInfo> Router::FindRoute(const std::string_view stop_from, const std::string_view stop_to) const {
-        return router_->BuildRoute(stop_ids_.at(std::string(stop_from)), stop_ids_.at(std::string(stop_to)));
-    }
-
-    const graph::DirectedWeightedGraph<double>& Router::GetGraph() const {
-        return graph_;
-    }
-    /*Данный код возвращает ссылку на объект графа graph_ из класса Router,
-     * чтобы получать доступ к графу извне объекта.*/
-
-}
+}  // namespace transport_catalogue::router

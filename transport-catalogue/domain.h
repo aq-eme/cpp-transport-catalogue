@@ -1,43 +1,32 @@
-/*
- * В этом файле вы можете разместить классы/структуры, которые являются частью предметной области (domain)
- * вашего приложения и не зависят от транспортного справочника. Например Автобусные маршруты и Остановки.
- *
- * Их можно было бы разместить и в transport_catalogue.h, однако вынесение их в отдельный
- * заголовочный файл может оказаться полезным, когда дело дойдёт до визуализации карты маршрутов:
- * визуализатор карты (map_renderer) можно будет сделать независящим от транспортного справочника.
- *
- * Если структура вашего приложения не позволяет так сделать, просто оставьте этот файл пустым.
- *
- */
-
 #pragma once
-
 #include "geo.h"
 
 #include <string>
 #include <vector>
-#include <set>
-#include <unordered_map>
 
-namespace transport {
+namespace transport_catalogue {
 
     struct Stop {
+        Stop(std::string name, geo::Coordinates position)
+                : name(std::move(name))
+                , position(position) {
+        }
+
         std::string name;
-        geo::Coordinates coordinates;
-        std::set<std::string> buses_by_stop;
+        geo::Coordinates position;
     };
+    using StopPtr = const Stop*;
 
     struct Bus {
-        std::string number;
-        std::vector<const Stop*> stops;
-        bool is_circle;
+        Bus(std::string name, std::vector<StopPtr> stops, std::vector<StopPtr> endpoints)
+                : name(std::move(name))
+                , stops(std::move(stops))
+                , endpoints(std::move(endpoints)) {
+        }
+        std::string name;
+        std::vector<StopPtr> stops;
+        std::vector<StopPtr> endpoints;
     };
+    using BusPtr = const Bus*;
 
-    struct BusStat {
-        size_t stops_count;
-        size_t unique_stops_count;
-        double route_length;
-        double curvature;
-    };
-
-} // namespace transport
+}  // namespace transport_catalogue

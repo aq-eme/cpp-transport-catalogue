@@ -1,22 +1,42 @@
 syntax = "proto3";
+import "cpp-transport-catalogue/transport-catalogue/graph.proto";
 
-package proto_transport;
+package transport_catalogue_proto;
 
-import "graph.proto";
-
-message RouterSettings {
-  int32 bus_wait_time = 1;
-  double bus_velocity = 2;
+message RoutingSettings {
+  int32 bus_wait_time_minutes = 1;
+  double bus_velocity_kmh = 2;
 }
 
-message StopId {
-  string name = 1;
-  int32 id = 2;
+message StopVertexIds {
+  uint32 stop = 1;
+  uint32 in = 2;
+  uint32 out = 3;
 }
 
-message Router {
-  RouterSettings router_settings = 1;
-  proto_graph.Graph graph = 2;
-  repeated StopId stop_ids = 3;
+message VertexInfo {
+  uint32 stop = 1;
 }
 
+message BusEdgeInfo {
+  uint32 bus = 1;
+  uint32 span_count = 2;
+}
+
+message WaitEdgeInfo {}
+
+message EdgeInfo {
+  oneof data {
+    BusEdgeInfo bus_data = 1;
+    WaitEdgeInfo wait_data = 2;
+  }
+}
+
+message TransportRouter {
+  RoutingSettings routing_settings = 1;
+  graph_proto.DirectedWeightedGraph graph = 2;
+  graph_proto.Router router = 3;
+  repeated StopVertexIds stops_vertex_ids = 4;
+  repeated VertexInfo vertices_info = 5;
+  repeated EdgeInfo edges_info = 6;
+}

@@ -5,7 +5,6 @@
 namespace json {
 
     namespace {
-
         using namespace std::literals;
 
         Node LoadNode(std::istream& input);
@@ -45,12 +44,10 @@ namespace json {
                             throw ParsingError("Duplicate key '"s + key + "' have been found");
                         }
                         dict.emplace(std::move(key), LoadNode(input));
-                    }
-                    else {
+                    } else {
                         throw ParsingError(": is expected but '"s + c + "' has been found"s);
                     }
-                }
-                else if (c != ',') {
+                } else if (c != ',') {
                     throw ParsingError(R"(',' is expected but ')"s + c + "' has been found"s);
                 }
             }
@@ -72,8 +69,7 @@ namespace json {
                 if (ch == '"') {
                     ++it;
                     break;
-                }
-                else if (ch == '\\') {
+                } else if (ch == '\\') {
                     ++it;
                     if (it == end) {
                         throw ParsingError("String parsing error");
@@ -98,11 +94,9 @@ namespace json {
                         default:
                             throw ParsingError("Unrecognized escape sequence \\"s + escaped_char);
                     }
-                }
-                else if (ch == '\n' || ch == '\r') {
+                } else if (ch == '\n' || ch == '\r') {
                     throw ParsingError("Unexpected end of line"s);
-                }
-                else {
+                } else {
                     s.push_back(ch);
                 }
                 ++it;
@@ -114,21 +108,18 @@ namespace json {
         Node LoadBool(std::istream& input) {
             const auto s = LoadLiteral(input);
             if (s == "true"sv) {
-                return Node{ true };
-            }
-            else if (s == "false"sv) {
-                return Node{ false };
-            }
-            else {
+                return Node{true};
+            } else if (s == "false"sv) {
+                return Node{false};
+            } else {
                 throw ParsingError("Failed to parse '"s + s + "' as bool"s);
             }
         }
 
         Node LoadNull(std::istream& input) {
             if (auto literal = LoadLiteral(input); literal == "null"sv) {
-                return Node{ nullptr };
-            }
-            else {
+                return Node{nullptr};
+            } else {
                 throw ParsingError("Failed to parse '"s + literal + "' as null"s);
             }
         }
@@ -161,8 +152,7 @@ namespace json {
             if (input.peek() == '0') {
                 read_char();
                 // После 0 в JSON не могут идти другие цифры
-            }
-            else {
+            } else {
                 read_digits();
             }
 
@@ -189,15 +179,13 @@ namespace json {
                     // Сначала пробуем преобразовать строку в int
                     try {
                         return std::stoi(parsed_num);
-                    }
-                    catch (...) {
+                    } catch (...) {
                         // В случае неудачи, например, при переполнении
                         // код ниже попробует преобразовать строку в double
                     }
                 }
                 return std::stod(parsed_num);
-            }
-            catch (...) {
+            } catch (...) {
                 throw ParsingError("Failed to convert "s + parsed_num + " to number"s);
             }
         }
@@ -246,7 +234,7 @@ namespace json {
             }
 
             PrintContext Indented() const {
-                return { out, indent_step, indent_step + indent };
+                return {out, indent_step, indent_step + indent};
             }
         };
 
@@ -309,8 +297,7 @@ namespace json {
             for (const Node& node : nodes) {
                 if (first) {
                     first = false;
-                }
-                else {
+                } else {
                     out << ",\n"sv;
                 }
                 inner_ctx.PrintIndent();
@@ -330,8 +317,7 @@ namespace json {
             for (const auto& [key, node] : nodes) {
                 if (first) {
                     first = false;
-                }
-                else {
+                } else {
                     out << ",\n"sv;
                 }
                 inner_ctx.PrintIndent();
@@ -355,11 +341,11 @@ namespace json {
     }  // namespace
 
     Document Load(std::istream& input) {
-        return Document{ LoadNode(input) };
+        return Document{LoadNode(input)};
     }
 
     void Print(const Document& doc, std::ostream& output) {
-        PrintNode(doc.GetRoot(), PrintContext{ output });
+        PrintNode(doc.GetRoot(), PrintContext{output});
     }
 
 }  // namespace json

@@ -1,46 +1,153 @@
 #pragma once
 
+#include "domain.h"
+#include "graph.h"
 #include "router.h"
 #include "transport_catalogue.h"
 
+#include <chrono>
 #include <memory>
+#include <optional>
+#include <unordered_map>
+#include <variant>
+#include <vector>
 
-namespace transport {
+namespace transport_catalogue::router {
 
-    struct RouterSettings {
-        int bus_wait_time = 0;
-        double bus_velocity = 0.0;
+    struct RoutingSettings {
+        std::chrono::minutes bus_wait_time;
+        double bus_velocity_kmh;
     };
+
+    using Minutes = std::chrono::duration<double, std::chrono::minutes::period>;
+
+    struct RouteInfo {
+        Minutes total_time;
+
+        struct BusItem {
+            BusPtr bus_ptr;
+            Minutes time;
+            size_t span_count;
+        };
+        struct WaitItem {
+            StopPtr stop_ptr;
+            Minutes time;
+        };
+
+        using Item = std::variant<BusItem, WaitItem>;
+        std::vector<Item> items;
+    };
+
+    class RouterBuilder;
 
     class Router {
     public:
-        Router(const RouterSettings& settings, const Catalogue& catalogue)
-                : settings_(settings), catalogue_(catalogue) {
-            BuildGraph();
+        Router(RoutingSettings settings, const TransportCatalogue& db);
+
+        std::optional<RouteInfo> FindRoute(StopPtr stop_from, StopPtr stop_to) const;
+
+        const RoutingSettings& GetRoutingSettings() const {
+            return settings_;
         }
 
-        void Initialize(const Catalogue& catalogue) {
-            BuildGraph();
+        const auto& GetGraph() const {
+            return *graph_holder_;
         }
 
-        const std::optional<graph::Router<double>::RouteInfo> FindRoute(const std::string_view stop_from, const std::string_view stop_to) const;
-        const graph::DirectedWeightedGraph<double>& GetGraph() const;
-        /*Метод GetGraph() возвращает ссылку на объект графа, который можно использовать для построения маршрутов.*/
+        const auto& GetRouter() const {
+            return *router_holder_;
+        }
+
+        struct StopVertexIds {
+            graph::VertexId in;
+            graph::VertexId out;
+        };
+        const StopVertexIds& GetStopVertexIds(StopPtr stop) const {
+            return stops_vertex_ids_.at(stop);
+        }
+
+        struct VertexInfo {
+            StopPtr stop_ptr;
+        };
+
+        const VertexInfo& GetVertexInfo(graph::VertexId vertex) const {
+            return vertices_info_.at(vertex);
+        }
+
+        struct BusEdgeInfo {
+            BusPtr bus_ptr;
+            size_t span_count;
+        };
+        struct WaitEdgeInfo {};
+        using EdgeInfo = std::variant<BusEdgeInfo, WaitEdgeInfo>;
+
+        const EdgeInfo& GetEdgeInfo(graph::EdgeId edge) const {
+            return edges_info_.at(edge);
+        }
 
     private:
-        void BuildGraph() const;
-        void BuildGraphWithStops();
-        void BuildGraphWithBuses(double velocity);
+        using BusGraph = graph::DirectedWeightedGraph<Minutes>;
+        using InternalRouter = graph::Router<Minutes>;
 
-        RouterSettings settings_;
-        const Catalogue& catalogue_;
+        Router(RoutingSettings settings, BusGraph graph)
+                : settings_(settings)
+                , graph_holder_(std::make_unique<BusGraph>(graph))
+                , vertices_info_(graph.GetVertexCount())
+                , edges_info_(graph.GetEdgeCount())
+        {
+        }
 
-        graph::DirectedWeightedGraph<double> graph_;
-        std::map<std::string, graph::VertexId> stop_ids_;
-        std::unique_ptr<graph::Router<double>> router_;
+        void FillGraphWithStops(const TransportCatalogue::StopPool& stops);
 
-        std::map<std::string, const Stop> all_stops;
-        std::map<std::string, Bus> all_buses;
+        void FillGraphWithBuses(const TransportCatalogue& db);
+
+        RoutingSettings settings_;
+
+        std::unique_ptr<BusGraph> graph_holder_;  // store indirectly for safe referencing from router
+        std::unique_ptr<InternalRouter> router_holder_;
+        std::unordered_map<StopPtr, StopVertexIds> stops_vertex_ids_;
+        std::vector<VertexInfo> vertices_info_;
+        std::vector<EdgeInfo> edges_info_;
+
+        friend class RouterBuilder;
     };
 
-}
+    class RouterBuilder {
+    public:
+        RouterBuilder(
+                RoutingSettings settings,
+                Router::BusGraph graph
+        )
+                : router_(std::move(settings), std::move(graph))
+        {}
+
+        const auto& GetGraph() const {
+            return router_.GetGraph();
+        }
+
+        void SetInternalRouter(Router::InternalRouter internal_router) {
+            router_.router_holder_ = std::make_unique<Router::InternalRouter>(std::move(internal_router));
+        }
+
+        void SetStopVertexIds(StopPtr stop, const Router::StopVertexIds& ids) {
+            router_.stops_vertex_ids_[stop] = ids;
+        }
+
+        void SetVertexInfo(graph::VertexId vertex, const Router::VertexInfo& info) {
+            router_.vertices_info_.at(vertex) = info;
+        }
+
+        template <typename EdgeInfo>
+        void SetEdgeInfo(graph::EdgeId edge, const EdgeInfo& info) {
+            router_.edges_info_.at(edge) = info;
+        }
+
+        Router Build() && {
+            return std::move(router_);
+        }
+
+    private:
+        Router router_;
+    };
+
+}  // namespace transport_catalogue::router

@@ -1,33 +1,51 @@
 #pragma once
+#include "domain.h"
 
-#include "json.h"
-#include "transport_catalogue.h"
-#include "map_renderer.h"
-#include "transport_router.h"
-
-#include <sstream>
 #include <optional>
+#include <string_view>
+#include <unordered_set>
 
-class RequestHandler {
-public:
-    RequestHandler(const transport::Catalogue& catalogue, const renderer::MapRenderer& renderer, const transport::Router& router)
-            : catalogue_(catalogue)
-            , renderer_(renderer)
-            , router_(router)
-    {
+namespace svg {
+    class Document;
+}
+
+namespace transport_catalogue {
+
+    namespace renderer {
+        class MapRenderer;
     }
 
-    std::optional<transport::BusStat> GetBusStat(const std::string_view bus_number) const;
-    const std::set<std::string> GetBusesByStop(std::string_view stop_name) const;
-    bool IsBusNumber(const std::string_view bus_number) const;
-    bool IsStopName(const std::string_view stop_name) const;
-    const std::optional<graph::Router<double>::RouteInfo> GetOptimalRoute(const std::string_view stop_from, const std::string_view stop_to) const;
-    const graph::DirectedWeightedGraph<double>& GetRouterGraph() const;
+    namespace router {
+        struct RouteInfo;
+        class Router;
+    }
 
-    svg::Document RenderMap() const;
+    class TransportCatalogue;
+    struct BusStat;
 
-private:
-    const transport::Catalogue& catalogue_;
-    const renderer::MapRenderer& renderer_;
-    const transport::Router& router_;
-};
+    namespace service {
+
+        class RequestHandler {
+        public:
+            RequestHandler(
+                    const TransportCatalogue& db,
+                    const renderer::MapRenderer& renderer,
+                    const router::Router& router
+            );
+
+            std::optional<BusStat> GetBusStat(std::string_view bus_name) const;
+
+            const std::unordered_set<BusPtr>* GetBusesByStop(std::string_view stop_name) const;
+
+            svg::Document RenderMap() const;
+
+            std::optional<router::RouteInfo> FindRoute(std::string_view stop_from, std::string_view stop_to) const;
+
+        private:
+            const TransportCatalogue& db_;
+            const renderer::MapRenderer& renderer_;
+            const router::Router& router_;
+        };
+
+    }  // namespace service
+}  // namespace transport_catalogue

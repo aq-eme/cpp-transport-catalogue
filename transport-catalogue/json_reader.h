@@ -1,46 +1,44 @@
 #pragma once
-#include "svg.h"
 #include "json.h"
-#include "transport_catalogue.h"
-#include "map_renderer.h"
-#include "request_handler.h"
 
-#include <iostream>
+#include <stdexcept>
 
-class JsonReader {
-public:
-    JsonReader(std::istream& input)
-            : input_(json::Load(input))
-    {}
+namespace transport_catalogue {
 
-    const json::Node& GetBaseRequests() const;
-    const json::Node& GetStatRequests() const;
-    const json::Node& GetRenderSettings() const;
-    const json::Node& GetRoutingSettings() const;
-    const json::Node& GetSerializationSettings() const;
+    namespace service {
+        class RequestHandler;
+    }  // namespace service
 
-    void ProcessRequests(const json::Node& stat_requests, RequestHandler& rh) const;
+    namespace renderer {
+        struct RenderSettings;
+    }  // namespace renderer
 
-    void FillCatalogue(transport::Catalogue& catalogue);
-    renderer::MapRenderer FillRenderSettings(const json::Node& settings) const;
-    const transport::RouterSettings FillRoutingSettings(const json::Node& settings) const;
+    namespace router {
+        struct RoutingSettings;
+    }  // namespace router
 
-    const json::Node PrintRoute(const json::Dict& request_map, RequestHandler& rh) const;
-    const json::Node PrintStop(const json::Dict& request_map, RequestHandler& rh) const;
-    const json::Node PrintMap(const json::Dict& request_map, RequestHandler& rh) const;
-    const json::Node PrintRouting(const json::Dict& request_map, RequestHandler& rh) const;
+    class TransportCatalogue;
 
-private:
-    json::Document input_;
-    json::Node dummy_ = nullptr;
+    namespace json_reader {
 
-    std::tuple<std::string_view, geo::Coordinates, std::map<std::string_view, int>> FillStop(const json::Dict& request_map) const;
-    void FillStopDistances(transport::Catalogue& catalogue) const;
-    std::tuple<std::string_view, std::vector<const transport::Stop*>, bool> FillRoute(const json::Dict& request_map, transport::Catalogue& catalogue) const;
+        class JsonReaderError : public std::runtime_error {
+        public:
+            using runtime_error::runtime_error;
+        };
 
-    svg::Color StringToRgb() const;
+        class InvalidRequestError : public JsonReaderError {
+        public:
+            using JsonReaderError::JsonReaderError;
+        };
 
-    svg::Color ArrayToRgb(const json::Array &vector) const;
+        TransportCatalogue ReadTransportCatalogue(const json::Array& base_requests_json);
 
-    svg::Color ArrayToRgba(const json::Array &vector) const;
-};
+        renderer::RenderSettings ReadRenderSettings(const json::Dict& render_settings_json);
+
+        router::RoutingSettings ReadRoutingSettings(const json::Dict& routing_settings_json);
+
+        json::Array HandleRequests(const json::Array& requests_json,
+                                   const service::RequestHandler& handler);
+
+    }  // namespace json_reader
+}  // namespace transport_catalogue

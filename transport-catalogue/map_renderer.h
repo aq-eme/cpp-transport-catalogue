@@ -1,122 +1,96 @@
-/*
- * В этом файле вы можете разместить код, отвечающий за визуализацию карты маршрутов в формате SVG.
- * Визуализация маршрутов вам понадобится во второй части итогового проекта.
- * Пока можете оставить файл пустым.
- */
-
 #pragma once
 
-#include "svg.h"
-#include "geo.h"
-#include "json.h"
 #include "domain.h"
+#include "svg.h"
 
-#include <algorithm>
+#include <cassert>
+#include <map>
 
-namespace renderer {
+namespace transport_catalogue {
 
-    inline const double EPSILON = 1e-6;
-    bool IsZero(double value);
+    class TransportCatalogue;
 
-    class SphereProjector {
-    public:
-        // points_begin и points_end задают начало и конец интервала элементов geo::Coordinates
-        template <typename PointInputIt>
-        SphereProjector(PointInputIt points_begin, PointInputIt points_end,
-                        double max_width, double max_height, double padding)
-                : padding_(padding) //
-        {
-            // Если точки поверхности сферы не заданы, вычислять нечего
-            if (points_begin == points_end) {
-                return;
+    namespace renderer {
+
+        struct RenderSettings {
+            std::vector<svg::Color> palette;
+
+            double max_width = 1200;
+            double max_height = 1200;
+            double padding = 100;
+
+            double line_width = 4.0;
+            double stop_radius = 2;
+
+            svg::Color underlayer_color{std::string("white")};
+            double underlayer_width = 2;
+
+            svg::Point stop_label_offset{3, -5};
+            uint32_t stop_label_font_size = 12;
+            svg::Color stop_label_color{std::string("black")};
+            std::string stop_label_font_family{"Verdana"};
+
+            svg::Point bus_label_offset{10, 10};
+            uint32_t bus_label_font_size = 20;
+            std::string bus_label_font_family{"Verdana"};
+        };
+
+        class MapRenderer : public svg::Drawable {
+        public:
+            MapRenderer(RenderSettings render_settings, const TransportCatalogue& db);
+
+            void Draw(svg::ObjectContainer& container) const override;
+
+            const RenderSettings& GetRenderSettings() const {
+                return render_settings_;
+            }
+            const auto& GetStopsCoords() const {
+                return stops_coords_;
             }
 
-            // Находим точки с минимальной и максимальной долготой
-            const auto [left_it, right_it] = std::minmax_element(
-                    points_begin, points_end,
-                    [](auto lhs, auto rhs) { return lhs.lng < rhs.lng; });
-            min_lon_ = left_it->lng;
-            const double max_lon = right_it->lng;
+        private:
+            void RenderBusLines(svg::ObjectContainer& container) const;
+            void RenderBusLabels(svg::ObjectContainer& container) const;
+            void RenderStopPoints(svg::ObjectContainer& container) const;
+            void RenderStopLabels(svg::ObjectContainer& container) const;
+            const svg::Color& GetBusLineColor(size_t index) const;
 
-            // Находим точки с минимальной и максимальной широтой
-            const auto [bottom_it, top_it] = std::minmax_element(
-                    points_begin, points_end,
-                    [](auto lhs, auto rhs) { return lhs.lat < rhs.lat; });
-            const double min_lat = bottom_it->lat;
-            max_lat_ = top_it->lat;
+            MapRenderer() = default;
+            static std::vector<BusPtr> MakeBuses(const TransportCatalogue& db);
 
-            // Вычисляем коэффициент масштабирования вдоль координаты x
-            std::optional<double> width_zoom;
-            if (!IsZero(max_lon - min_lon_)) {
-                width_zoom = (max_width - 2 * padding) / (max_lon - min_lon_);
-            }
-
-            // Вычисляем коэффициент масштабирования вдоль координаты y
-            std::optional<double> height_zoom;
-            if (!IsZero(max_lat_ - min_lat)) {
-                height_zoom = (max_height - 2 * padding) / (max_lat_ - min_lat);
-            }
-
-            if (width_zoom && height_zoom) {
-                // Коэффициенты масштабирования по ширине и высоте ненулевые,
-                // берём минимальный из них
-                zoom_coeff_ = std::min(*width_zoom, *height_zoom);
-            } else if (width_zoom) {
-                // Коэффициент масштабирования по ширине ненулевой, используем его
-                zoom_coeff_ = *width_zoom;
-            } else if (height_zoom) {
-                // Коэффициент масштабирования по высоте ненулевой, используем его
-                zoom_coeff_ = *height_zoom;
-            }
-        }
-
-        // Проецирует широту и долготу в координаты внутри SVG-изображения
-        svg::Point operator()(geo::Coordinates coords) const {
-            return {
-                    (coords.lng - min_lon_) * zoom_coeff_ + padding_,
-                    (max_lat_ - coords.lat) * zoom_coeff_ + padding_
+            struct SortedByName {
+                bool operator()(StopPtr lhs, StopPtr rhs) const {
+                    assert(lhs);
+                    assert(rhs);
+                    return lhs->name < rhs->name;
+                }
             };
-        }
+            RenderSettings render_settings_;
+            std::vector<BusPtr> buses_;
+            std::map<StopPtr, svg::Point, SortedByName> stops_coords_;
 
-    private:
-        double padding_;
-        double min_lon_ = 0;
-        double max_lat_ = 0;
-        double zoom_coeff_ = 0;
-    };
+            friend class MapRendererBuilder;
+        };
 
-    struct RenderSettings {
-        double width = 0.0;
-        double height = 0.0;
-        double padding = 0.0;
-        double stop_radius = 0.0;
-        double line_width = 0.0;
-        int bus_label_font_size = 0;
-        svg::Point bus_label_offset = { 0.0, 0.0 };
-        int stop_label_font_size = 0;
-        svg::Point stop_label_offset = { 0.0, 0.0 };
-        svg::Color underlayer_color = { svg::NoneColor };
-        double underlayer_width = 0.0;
-        std::vector<svg::Color> color_palette {};
-    };
+        class MapRendererBuilder {
+        public:
+            MapRendererBuilder(RenderSettings render_settings, const TransportCatalogue& db) {
+                data_.render_settings_ = std::move(render_settings);
+                data_.buses_ = MapRenderer::MakeBuses(db);
+            }
 
-    class MapRenderer {
-    public:
-        MapRenderer(const RenderSettings& render_settings)
-                : render_settings_(render_settings)
-        {}
+            void SetStopCoords(StopPtr stop_ptr, svg::Point coords) {
+                data_.stops_coords_[stop_ptr] = coords;
+            }
 
-        std::vector<svg::Polyline> RenderGetRouteLines(const std::map<std::string_view, const transport::Bus*>& buses, const SphereProjector& sp) const;
-        std::vector<svg::Text> RenderBusLabel(const std::map<std::string_view, const transport::Bus*>& buses, const SphereProjector& sp) const;
-        std::vector<svg::Circle> RenderStopsSymbols(const std::map<std::string_view, const transport::Stop*>& stops, const SphereProjector& sp) const;
-        std::vector<svg::Text> RenderStopsLabels(const std::map<std::string_view, const transport::Stop*>& stops, const SphereProjector& sp) const;
+            MapRenderer Build() && {
+                return std::move(data_);
+            }
 
-        svg::Document GetSVG(const std::map<std::string_view, const transport::Bus*>& buses) const;
+        private:
+            MapRenderer data_;
+        };
 
-        const RenderSettings GetRenderSettings() const;
+    }  // namespace renderer
 
-    private:
-        const RenderSettings render_settings_;
-    };
-
-} // namespace renderer
+}  // namespace transport_catalogue

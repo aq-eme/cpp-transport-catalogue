@@ -1,27 +1,45 @@
 #include "request_handler.h"
 
+#include "map_renderer.h"
+#include "transport_catalogue.h"
+#include "transport_router.h"
 
+namespace transport_catalogue::service {
 
-const std::set<std::string> RequestHandler::GetBusesByStop(std::string_view stop_name) const {
-    return catalogue_.FindStop(stop_name)->buses_by_stop;
-}
+    RequestHandler::RequestHandler(
+            const TransportCatalogue& db,
+            const renderer::MapRenderer& renderer,
+            const router::Router& router
+    )
+            : db_(db)
+            , renderer_(renderer)
+            , router_(router) {
+    }
 
-bool RequestHandler::IsBusNumber(const std::string_view bus_number) const {
-    return catalogue_.FindRoute(bus_number);
-}
+    std::optional<BusStat> RequestHandler::GetBusStat(std::string_view bus_name) const {
+        const BusPtr bus = db_.FindBus(bus_name);
+        return bus ? std::make_optional(db_.GetStat(bus)) : std::nullopt;
+    }
 
-bool RequestHandler::IsStopName(const std::string_view stop_name) const {
-    return catalogue_.FindStop(stop_name);
-}
+    const std::unordered_set<BusPtr>* RequestHandler::GetBusesByStop(std::string_view stop_name) const {
+        const StopPtr stop = db_.FindStop(stop_name);
+        return stop ? &(db_.GetBusesByStop(stop)) : nullptr;
+    }
 
-const std::optional<graph::Router<double>::RouteInfo> RequestHandler::GetOptimalRoute(const std::string_view stop_from, const std::string_view stop_to) const {
-    return router_.FindRoute(stop_from, stop_to);
-}
+    svg::Document RequestHandler::RenderMap() const {
+        svg::Document doc;
+        renderer_.Draw(doc);
+        return doc;
+    }
 
-const graph::DirectedWeightedGraph<double>& RequestHandler::GetRouterGraph() const {
-    return router_.GetGraph();
-}
+    std::optional<router::RouteInfo> RequestHandler::FindRoute(std::string_view stop_name_from, std::string_view stop_name_to) const {
+        const StopPtr stop_from = db_.FindStop(stop_name_from);
+        const StopPtr stop_to = db_.FindStop(stop_name_to);
+        if (stop_from && stop_to) {
+            return router_.FindRoute(stop_from, stop_to);
+        } else {
+            return std::nullopt;
+        }
+    }
 
-svg::Document RequestHandler::RenderMap() const {
-    return renderer_.GetSVG(catalogue_.GetSortedAllBuses());
-}
+}  // namespace transport_catalogue::service
