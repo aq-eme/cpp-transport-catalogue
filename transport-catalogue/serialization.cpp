@@ -498,3 +498,4 @@ namespace transport_catalogue::serialization {
     }
 
 }  // namespace transport_catalogue::serialization
+

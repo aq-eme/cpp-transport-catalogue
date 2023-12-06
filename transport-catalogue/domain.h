@@ -30,3 +30,4 @@ namespace transport_catalogue {
     using BusPtr = const Bus*;
 
 }  // namespace transport_catalogue
+

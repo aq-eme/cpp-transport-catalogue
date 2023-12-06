@@ -28,3 +28,4 @@ message MapRenderer {
   RenderSettings render_settings = 1;
   repeated StopCoords stops_coords = 2;
 }
+
