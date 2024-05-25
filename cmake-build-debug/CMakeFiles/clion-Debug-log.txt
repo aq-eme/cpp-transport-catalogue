@@ -1,6 +1,0 @@
-C:\WINDOWS\system32\wsl.exe --distribution Ubuntu --exec "/mnt/c/Program Files/JetBrains/CLion 2022.2.4/bin/ttyfix" /bin/bash -c "export CLION_IDE=TRUE && export CMAKE_COLOR_DIAGNOSTICS=ON && export JETBRAINS_IDE=TRUE && cd /mnt/c/Users/emelj/cpp-transport-catalogue/cmake-build-debug && /usr/bin/cmake -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_TOOLCHAIN_FILE=C:\Users\emelj\.vcpkg-clion\vcpkg\scripts\buildsystems\vcpkg.cmake' -G 'CodeBlocks - Unix Makefiles' -S /mnt/c/Users/emelj/cpp-transport-catalogue -B /mnt/c/Users/emelj/cpp-transport-catalogue/cmake-build-debug"
-CMake Error at CMakeLists.txt:2 (cmake_minimum_required):
-  CMake 3.26 or higher is required.  You are running version 3.22.1
-
-
--- Configuring incomplete, errors occurred!
